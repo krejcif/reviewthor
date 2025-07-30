@@ -1,0 +1,527 @@
+# ReviewThor - AI-Powered JavaScript Code Review Bot Development Rules
+
+## Project Context
+
+This is a Node.js TypeScript application that runs as a Google Cloud Function to perform AI-powered code reviews specifically for JavaScript/TypeScript projects on GitHub pull requests. It uses Claude Opus with advanced reasoning capabilities and supports custom review instructions via `.reviewthor.md` files in target repositories. The application must maintain high quality, security, and performance standards while ensuring responsible AI usage.
+
+## Code Standards
+
+### TypeScript Guidelines
+
+1. **Strict Mode**: Always use TypeScript strict mode
+   ```typescript
+   "compilerOptions": {
+     "strict": true,
+     "noImplicitAny": true,
+     "strictNullChecks": true,
+     "strictFunctionTypes": true
+   }
+   ```
+
+2. **Type Safety**: 
+   - No `any` types except when absolutely necessary (document why)
+   - Use interfaces for all data structures
+   - Prefer type inference where obvious
+   - Use discriminated unions for event types
+
+3. **Async/Await**: 
+   - Always use async/await over promises
+   - Proper error handling with try/catch
+   - No unhandled promise rejections
+
+### Code Organization
+
+1. **Single Responsibility**: Each module should have one clear purpose
+2. **Dependency Injection**: Use constructor injection for testability
+3. **Pure Functions**: Prefer pure functions for AI response processing
+4. **Immutability**: Use `readonly` and `const` wherever possible
+
+## Testing Requirements
+
+### Test-Driven Development (TDD)
+
+1. **Red-Green-Refactor Cycle**:
+   - Write failing test first
+   - Write minimal code to pass
+   - Refactor for quality
+   - Commit after each cycle
+
+2. **Test Coverage**:
+   - Minimum 90% overall coverage
+   - 100% coverage for security-critical code
+   - No untested error paths
+   - Use `/* istanbul ignore next */` sparingly and document why
+
+3. **Test Structure**:
+   ```typescript
+   describe('ModuleName', () => {
+     describe('methodName', () => {
+       it('should handle normal case', async () => {
+         // Arrange
+         // Act
+         // Assert
+       });
+       
+       it('should handle error case', async () => {
+         // Test error scenarios
+       });
+     });
+   });
+   ```
+
+4. **Mock Strategy**:
+   - Mock all external dependencies (GitHub, Anthropic APIs)
+   - Use factory functions for test data
+   - Never mock the system under test
+   - Verify all mock interactions
+   - Create realistic AI response mocks
+
+### AI-Specific Testing
+
+1. **Prompt Testing**:
+   ```typescript
+   describe('PromptManager', () => {
+     it('should include thinking instructions', () => {
+       const prompt = promptManager.buildPrompt(context);
+       expect(prompt).toContain('<thinking>');
+     });
+     
+     it('should handle large contexts', () => {
+       const largeContext = generateLargeContext();
+       const prompt = promptManager.buildPrompt(largeContext);
+       expect(countTokens(prompt)).toBeLessThan(MAX_TOKENS);
+     });
+   });
+   ```
+
+2. **AI Response Testing**:
+   - Test various response formats
+   - Test malformed responses
+   - Test prompt injection attempts
+   - Verify thinking process extraction
+
+3. **Integration Testing with AI**:
+   - Use recorded real AI responses for consistency
+   - Test rate limit handling
+   - Test timeout scenarios
+   - Verify cost tracking
+
+## Architecture Patterns
+
+### Hexagonal Architecture
+
+1. **Core Domain**: Pure business logic with no dependencies
+2. **Ports**: Interfaces for external interactions
+3. **Adapters**: Implementations of ports (GitHub API, Cloud Function handler)
+
+### Error Handling
+
+1. **Custom Error Classes**:
+   ```typescript
+   class GitHubApiError extends Error {
+     constructor(
+       message: string,
+       public statusCode: number,
+       public requestId: string
+     ) {
+       super(message);
+       this.name = 'GitHubApiError';
+     }
+   }
+   ```
+
+2. **Error Boundaries**: Catch errors at service boundaries
+3. **Graceful Degradation**: Continue processing other files if one fails
+
+## AI Integration Guidelines
+
+### Claude Opus Integration
+
+1. **AI Client Setup**:
+   ```typescript
+   class AnthropicClient {
+     constructor(
+       private readonly apiKey: string,
+       private readonly model: string = 'claude-3-opus-20240229'
+     ) {}
+     
+     async createMessage(prompt: string, context: CodeContext): Promise<AIResponse> {
+       // Include thinking instructions
+       // Handle rate limits
+       // Parse structured output
+     }
+   }
+   ```
+
+2. **Prompt Engineering Principles**:
+   - Always include thinking/reasoning instructions
+   - Provide clear output format specifications
+   - Include relevant code context (file, PR description, related files)
+   - Use XML tags for structured sections
+   - Implement prompt versioning for A/B testing
+   - Include JavaScript/TypeScript specific knowledge
+   - Reference popular frameworks (React, Express)
+   - Consider .reviewthor.md custom instructions
+
+3. **Context Window Management**:
+   - Optimize token usage by prioritizing relevant code
+   - Implement sliding window for large files
+   - Track token usage per request
+   - Cache responses for identical contexts
+
+### AI Safety and Quality
+
+1. **Response Validation**:
+   ```typescript
+   interface ResponseValidator {
+     validateFormat(response: string): boolean
+     extractComments(response: string): Comment[]
+     sanitizeOutput(text: string): string
+     detectHallucination(response: AIResponse, context: CodeContext): boolean
+   }
+   ```
+
+2. **Prompt Security**:
+   - Sanitize all user-provided content before including in prompts
+   - Implement prompt injection detection
+   - Never include sensitive data (API keys, passwords) in prompts
+   - Log all prompts for audit purposes
+
+3. **AI Error Handling**:
+   - Implement fallback for AI service unavailability
+   - Handle rate limits with exponential backoff
+   - Validate all AI responses before posting to GitHub
+   - Track AI performance metrics
+
+### Prompt Templates
+
+1. **Base Review Prompt Structure**:
+   ```typescript
+   const basePrompt = `
+   <thinking>
+   [Instructions for reasoning about the code]
+   </thinking>
+   
+   <context>
+   [PR description, file changes, related code]
+   </context>
+   
+   <task>
+   [Specific review instructions]
+   </task>
+   
+   <output_format>
+   [Expected response structure]
+   </output_format>
+   `;
+   ```
+
+2. **JavaScript/TypeScript Templates**:
+   - Customize prompts based on file extension (.js, .ts, .jsx, .tsx)
+   - Include ESLint and Prettier conventions
+   - Reference popular style guides (Airbnb, Standard)
+   - Framework-aware analysis (React hooks, Express middleware, etc.)
+
+### Custom Instruction Processing
+
+1. **Instruction File Loading**:
+   ```typescript
+   interface InstructionProcessor {
+     async loadInstructions(owner: string, repo: string): Promise<CustomInstructions | null> {
+       // Check for .reviewthor.md in repo root
+       // Parse markdown content
+       // Validate instruction format
+       // Merge with defaults
+     }
+   }
+   ```
+
+2. **.reviewthor.md Structure**:
+   - Focus areas (performance, security, types)
+   - Custom rules and patterns
+   - Ignore patterns (glob format)
+   - Framework preferences
+   - Severity overrides
+
+### Logging Strategy
+
+1. **Structured Logging**:
+   ```typescript
+   logger.info('Processing PR', {
+     owner,
+     repo,
+     prNumber,
+     filesCount,
+     correlationId
+   });
+   ```
+
+2. **Log Levels**:
+   - ERROR: Actionable errors requiring investigation
+   - WARN: Recoverable issues or degraded functionality
+   - INFO: Key business events
+   - DEBUG: Detailed troubleshooting (not in production)
+
+## Security Best Practices
+
+1. **Input Validation**:
+   - Validate all webhook payloads
+   - Sanitize file paths and content
+   - Limit payload sizes
+   - Validate GitHub signatures using constant-time comparison
+
+2. **Secret Management**:
+   - Never hardcode secrets
+   - Use Google Secret Manager
+   - Rotate credentials regularly
+   - Audit secret access
+
+3. **Dependencies**:
+   - Run `npm audit` before each commit
+   - Update dependencies weekly
+   - Use exact versions in package.json
+   - Document security exceptions
+
+## Performance Guidelines
+
+1. **Function Optimization**:
+   - Keep cold start time < 2 seconds
+   - Lazy load AI components
+   - Use streaming for large files
+   - Implement request timeouts
+
+2. **Memory Management**:
+   - Process files in batches
+   - Clear large objects after use
+   - Monitor memory usage
+   - Set appropriate memory limits
+
+3. **API Rate Limiting**:
+   - Implement exponential backoff
+   - Cache GitHub API responses
+   - Batch API requests
+   - Monitor rate limit headers
+
+## Documentation Standards
+
+1. **Code Documentation**:
+   ```typescript
+   /**
+    * Analyzes a file for security vulnerabilities.
+    * @param file - The file to analyze with its diff
+    * @param config - Analysis configuration
+    * @returns Array of security issues found
+    * @throws {AnalysisError} If file cannot be parsed
+    */
+   async function analyzeSecurity(
+     file: GitHubFile,
+     config: SecurityConfig
+   ): Promise<SecurityIssue[]> {
+   ```
+
+2. **README Requirements**:
+   - Clear installation instructions
+   - Environment variable documentation
+   - Troubleshooting section
+   - Architecture diagram
+
+3. **Inline Comments**:
+   - Explain "why", not "what"
+   - Document complex algorithms
+   - Note performance considerations
+   - Mark TODOs with issue numbers
+
+## Git Workflow
+
+1. **Branch Strategy**:
+   - `main`: Production-ready code
+   - `develop`: Integration branch
+   - `feature/*`: New features
+   - `fix/*`: Bug fixes
+   - `test/*`: Testing improvements
+
+2. **Commit Messages**:
+   ```
+   type(scope): subject
+   
+   Body explaining why this change was made
+   
+   Fixes #123
+   ```
+   Types: feat, fix, docs, style, refactor, test, chore
+
+3. **Pull Request Rules**:
+   - Must pass all tests
+   - Must maintain 90% coverage
+   - Requires code review
+   - Must update documentation
+
+## Development Workflow
+
+1. **Before Starting Feature**:
+   - Create issue with acceptance criteria
+   - Design API interfaces
+   - Write integration tests
+   - Get design approval
+
+2. **During Development**:
+   - Commit after each TDD cycle
+   - Run tests before pushing
+   - Update documentation
+   - Self-review changes
+
+3. **Code Review Checklist**:
+   - [ ] Tests cover all code paths
+   - [ ] Error handling is comprehensive
+   - [ ] Performance impact considered
+   - [ ] Security implications reviewed
+   - [ ] Documentation updated
+   - [ ] No console.log statements
+   - [ ] No commented-out code
+
+## Specific Patterns
+
+### AI Review Engine Implementation
+
+```typescript
+export class AIReviewEngine {
+  constructor(
+    private readonly anthropicClient: AnthropicClient,
+    private readonly promptManager: PromptManager,
+    private readonly contextBuilder: ContextBuilder,
+    private readonly instructionProcessor: InstructionProcessor,
+    private readonly logger: Logger
+  ) {}
+
+  async analyzeCode(files: File[], prContext: PRContext): Promise<ReviewResult> {
+    try {
+      // Filter only JavaScript/TypeScript files
+      const jsFiles = files.filter(f => /\.(js|jsx|ts|tsx)$/.test(f.path));
+      
+      // Load custom instructions from .reviewthor.md
+      const customInstructions = await this.instructionProcessor.loadInstructions(
+        prContext.owner,
+        prContext.repo
+      );
+      
+      // Build optimized context
+      const context = await this.contextBuilder.buildContext(jsFiles, prContext);
+      
+      // Get appropriate prompt template with custom instructions
+      const prompt = this.promptManager.getPrompt(context, customInstructions);
+      
+      // Call AI with thinking instructions
+      const response = await this.anthropicClient.createMessage(prompt, context);
+      
+      // Validate and parse response
+      const comments = this.parseAIResponse(response);
+      
+      // Apply custom filtering rules
+      const filtered = this.applyCustomRules(comments, customInstructions);
+      
+      // Filter out duplicates and low-confidence suggestions
+      return this.postProcessComments(filtered);
+    } catch (error) {
+      this.logger.error('AI analysis failed', { error, filesCount: files.length });
+      throw new AIAnalysisError('Failed to analyze code', error);
+    }
+  }
+}
+```
+
+### GitHub API Client Usage
+
+```typescript
+// Always use with retry logic
+const result = await retry(
+  async () => githubClient.createReview(owner, repo, number, comments),
+  {
+    retries: 3,
+    factor: 2,
+    minTimeout: 1000,
+    maxTimeout: 5000,
+    onRetry: (error, attempt) => {
+      logger.warn('Retrying GitHub API call', { error, attempt });
+    }
+  }
+);
+```
+
+## Monitoring and Metrics
+
+1. **Required Metrics**:
+   - Function execution time
+   - Memory usage
+   - Error rates by type
+   - GitHub API usage
+   - Anthropic API usage and costs
+   - AI response times
+   - Token usage per request
+   - Cache hit rates
+   - AI suggestion acceptance rate
+   - Prompt template performance
+
+2. **Alerting Thresholds**:
+   - Error rate > 5% in 5 minutes
+   - P95 latency > 30 seconds (GCF timeout is 540s)
+   - Memory usage > 80% (of 2GB allocation)
+   - GitHub API rate limit < 20%
+   - Anthropic API errors > 1% in 10 minutes
+   - Average AI response time > 15 seconds
+   - Token usage > 80% of limit per request (200k context window)
+
+## Environment Variables
+
+Always validate environment variables on startup:
+
+```typescript
+const requiredEnvVars = [
+  'GITHUB_APP_ID',
+  'GITHUB_PRIVATE_KEY',
+  'GITHUB_WEBHOOK_SECRET',
+  'GCP_PROJECT_ID',
+  'ANTHROPIC_API_KEY'
+];
+
+requiredEnvVars.forEach(varName => {
+  if (!process.env[varName]) {
+    throw new Error(`Missing required environment variable: ${varName}`);
+  }
+});
+
+// Optional AI configuration
+const aiConfig = {
+  model: process.env.ANTHROPIC_MODEL || 'claude-3-opus-20240229',
+  maxTokens: parseInt(process.env.MAX_TOKENS || '4096'),
+  temperature: parseFloat(process.env.AI_TEMPERATURE || '0.3'),
+  maxRetries: parseInt(process.env.MAX_RETRIES || '3'),
+  timeoutMs: parseInt(process.env.AI_TIMEOUT_MS || '30000')
+};
+```
+
+## Debugging Guidelines
+
+1. **Local Development**:
+   - Use @google-cloud/functions-framework for local testing
+   - Mock external services
+   - Use debug module for conditional logging
+   - Implement health check endpoint
+
+2. **Production Debugging**:
+   - Use correlation IDs
+   - Implement request tracing
+   - Add timing metrics
+   - Create runbooks for common issues
+
+## Remember
+
+- **Security First**: Every feature must consider security implications, especially AI prompts
+- **Test Everything**: If it's not tested, it's broken - including AI responses
+- **Performance Matters**: Every millisecond counts in serverless, optimize AI calls
+- **User Experience**: Clear, actionable AI-generated feedback with JavaScript-specific explanations
+- **Maintainability**: Code for the next developer (it might be you)
+- **AI Responsibility**: Ensure ethical AI usage, prevent hallucinations, validate outputs
+- **Cost Awareness**: Monitor and optimize token usage to control AI costs
+- **Continuous Learning**: Track AI performance and improve prompts based on feedback
+- **JavaScript Focus**: Deep understanding of JS/TS ecosystem, frameworks, and best practices
+- **Custom Instructions**: Always respect .reviewthor.md preferences and rules

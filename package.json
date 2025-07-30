@@ -1,0 +1,45 @@
+{
+  "name": "reviewthor",
+  "version": "1.0.0",
+  "description": "AI-powered JavaScript code review bot for GitHub",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src/**/*.ts",
+    "format": "prettier --write src/**/*.ts",
+    "start": "functions-framework --target=reviewthor --signature-type=http",
+    "deploy": "gcloud functions deploy reviewthor --gen2 --runtime=nodejs20 --trigger-http --entry-point=reviewthor --memory=2GB --timeout=540 --min-instances=1 --max-instances=100"
+  },
+  "keywords": ["github", "code-review", "ai", "claude", "typescript"],
+  "author": "ReviewThor Team",
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.20.0",
+    "@google-cloud/functions-framework": "^3.3.0",
+    "@google-cloud/logging": "^11.0.0",
+    "@google-cloud/secret-manager": "^5.0.1",
+    "@octokit/app": "^14.0.2",
+    "@octokit/webhooks": "^12.0.10",
+    "dotenv": "^16.4.1"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.11",
+    "@types/node": "^20.11.5",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.2.4",
+    "ts-jest": "^29.1.1",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
